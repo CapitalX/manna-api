@@ -30,16 +30,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://localhost:8081",
-    "exp://localhost:8081",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=[o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
@@ -52,3 +45,8 @@ app.include_router(recipes_router, prefix=settings.API_PREFIX)
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/source")
+async def source():
+    return {"repository": "https://github.com/CapitalX/Manna", "license": "AGPL-3.0-or-later"}

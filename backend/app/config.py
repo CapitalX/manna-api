@@ -30,6 +30,9 @@ class Settings(BaseSettings):
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
+    # CORS – comma-separated list of allowed origins
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8000,http://localhost:8081,exp://localhost:8081"
+
     # Auth – must be set via .env or environment variables
     JWT_SECRET: str  # required — no default; must be set in .env
     JWT_ALGORITHM: str = "HS256"
