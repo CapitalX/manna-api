@@ -269,22 +269,15 @@ def upgrade() -> None:
         ),
     )
 
-    # Partial unique index: only one active fast per user
+    # Partial unique index: only one active fast per user.
+    # Postgres doesn't support partial UNIQUE constraints (only partial unique
+    # *indexes*), so this single index enforces the rule.
     op.create_index(
         "idx_user_fasts_user_active",
         "user_fasts",
         ["user_id"],
+        unique=True,
         postgresql_where=sa.text("status = 'active'"),
-    )
-
-    # Unique constraint: one active fast per user at DB level
-    op.execute(
-        """
-        ALTER TABLE user_fasts
-        ADD CONSTRAINT one_active_fast_per_user
-        UNIQUE (user_id, status)
-        WHERE (status = 'active')
-        """
     )
 
     # Seed all 7 fast types
@@ -312,7 +305,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("ALTER TABLE user_fasts DROP CONSTRAINT IF EXISTS one_active_fast_per_user")
     op.drop_index("idx_user_fasts_user_active", table_name="user_fasts")
     op.drop_table("user_fasts")
     op.drop_table("fast_types")
