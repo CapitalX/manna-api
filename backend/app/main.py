@@ -15,6 +15,7 @@ from app.config import get_settings
 from app.database import create_tables
 from app.auth.router import router as auth_router
 from app.recipes.router import router as recipes_router
+from app.fasting.router import router as fasting_router
 
 settings = get_settings()
 
@@ -40,6 +41,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix=settings.API_PREFIX)
 app.include_router(recipes_router, prefix=settings.API_PREFIX)
+app.include_router(fasting_router, prefix=settings.API_PREFIX)
 
 
 @app.get("/health")
