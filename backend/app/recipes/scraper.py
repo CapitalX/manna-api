@@ -4,9 +4,53 @@ Recipe scraper module — wraps the open-source `recipe-scrapers` library
 (the same engine Mealie uses) to extract structured recipe data from URLs.
 """
 from dataclasses import dataclass
+from urllib.parse import urlparse, urlunparse, urlencode, parse_qsl
 
 from recipe_scrapers import scrape_html
 import httpx
+
+# ---------------------------------------------------------------------------
+# Tracking / campaign query parameters to strip during URL normalization.
+# All utm_* variants are handled by prefix matching; these are exact names.
+# ---------------------------------------------------------------------------
+_STRIP_PARAMS = frozenset(
+    ["fbclid", "gclid", "mc_cid", "mc_eid", "ref"]
+)
+
+
+def normalize_source_url(raw: str) -> str:
+    """
+    Normalize a recipe URL for deduplication.
+
+    Rules applied (per Phase 14 spec):
+    - Lowercase scheme and host.
+    - Strip fragment (#...).
+    - Remove tracking query params: all utm_* prefixed params, plus the
+      exact names in _STRIP_PARAMS (fbclid, gclid, mc_cid, mc_eid, ref).
+    - Preserve all other query params.
+    - Remove trailing slash from path (unless path is just "/", which is
+      collapsed to empty string for a cleaner canonical form).
+    """
+    parsed = urlparse(raw)
+
+    # Lowercase scheme and host
+    scheme = parsed.scheme.lower()
+    netloc = parsed.netloc.lower()
+
+    # Strip fragment
+    fragment = ""
+
+    # Filter tracking query params
+    kept_params = [
+        (k, v) for k, v in parse_qsl(parsed.query)
+        if k.lower() not in _STRIP_PARAMS and not k.lower().startswith("utm_")
+    ]
+    query = urlencode(kept_params)
+
+    # Remove trailing slash from path
+    path = parsed.path.rstrip("/")
+
+    return urlunparse((scheme, netloc, path, parsed.params, query, fragment))
 
 
 @dataclass

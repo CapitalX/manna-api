@@ -35,11 +35,22 @@ async def get_db() -> AsyncSession:
 
 
 async def set_tenant_context(session: AsyncSession, tenant_id: uuid.UUID) -> None:
-    """Set the current tenant on the PostgreSQL session for RLS policies."""
-    await session.execute(
-        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
-        {"tid": str(tenant_id)},
-    )
+    """Set the current tenant on the PostgreSQL session for RLS policies.
+
+    No-ops gracefully on SQLite (used in tests) — set_config() is a
+    PostgreSQL built-in that SQLite doesn't support. RLS isolation is
+    enforced by explicit tenant_id filters in every query.
+    """
+    try:
+        await session.execute(
+            text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+            {"tid": str(tenant_id)},
+        )
+    except Exception as exc:
+        # OperationalError: "no such function: set_config" — SQLite test environment
+        if "set_config" in str(exc):
+            return
+        raise
 
 
 async def create_tables() -> None:

@@ -70,9 +70,8 @@ def client(db_session: AsyncSession):
     TestClient with overridden DB dependency.
 
     get_current_user is NOT overridden here — tests that need an
-    authenticated request pass an _authed_client fixture instead,
-    which also overrides get_current_user to avoid the PostgreSQL
-    set_config() call that SQLite doesn't support.
+    authenticated request pass an authed_client fixture instead,
+    which also overrides get_current_user.
     """
     async def override_get_db():
         yield db_session
@@ -255,6 +254,32 @@ async def create_user_and_token(db: AsyncSession) -> tuple[User, str]:
 
     token = create_access_token(user.id, tenant.id)
     return user, token
+
+
+async def seed_recipe(
+    db: AsyncSession,
+    user,
+    url: str = "https://example.com/recipe",
+    title: str = "Test Recipe",
+) -> None:
+    """Insert a recipe row scoped to the given user's tenant."""
+    from app.models.recipe import Recipe
+    from app.recipes.scraper import normalize_source_url
+
+    recipe = Recipe(
+        title=title,
+        description=None,
+        source_url=normalize_source_url(url),
+        image_url=None,
+        prep_time_minutes=None,
+        cook_time_minutes=None,
+        total_time_minutes=None,
+        servings=None,
+        tenant_id=user.tenant_id,
+    )
+    db.add(recipe)
+    await db.flush()
+    return recipe
 
 
 async def seed_fast_types(db: AsyncSession, seeds: list[dict] | None = None) -> None:

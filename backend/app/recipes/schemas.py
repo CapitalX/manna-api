@@ -47,3 +47,12 @@ class RecipeOut(BaseModel):
 
 class ScrapeRequest(BaseModel):
     url: HttpUrl
+
+
+class ImportUrlRequest(BaseModel):
+    url: HttpUrl
+
+
+class ImportUrlResponse(BaseModel):
+    recipe: RecipeOut
+    already_exists: bool
