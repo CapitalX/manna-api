@@ -11,26 +11,156 @@ from app.recipes.categorizer import categorize
 
 
 class TestCategorize:
-    # --- Meat ---
+    # --- Poultry ---
     def test_chicken_breast(self):
         cat, conf = categorize("chicken breast")
-        assert cat == "meat"
-        assert conf > 0.5
-
-    def test_ground_beef(self):
-        cat, conf = categorize("ground beef")
-        assert cat == "meat"
-        assert conf > 0.5
-
-    def test_salmon_fillet(self):
-        cat, conf = categorize("salmon fillet")
-        assert cat == "meat"
+        assert cat == "poultry"
         assert conf > 0.5
 
     def test_turkey(self):
         cat, conf = categorize("turkey")
-        assert cat == "meat"
+        assert cat == "poultry"
         assert conf > 0.5
+
+    # --- Beef ---
+    def test_ground_beef(self):
+        cat, conf = categorize("ground beef")
+        assert cat == "beef"
+        assert conf > 0.5
+
+    def test_bison(self):
+        cat, conf = categorize("bison")
+        assert cat == "beef"
+        assert conf > 0.5
+
+    # --- Pork ---
+    def test_pork_chop(self):
+        cat, conf = categorize("pork chop")
+        assert cat == "pork"
+        assert conf > 0.5
+
+    def test_lamb(self):
+        cat, conf = categorize("lamb")
+        assert cat == "pork"
+        assert conf > 0.5
+
+    # --- Fish ---
+    def test_salmon_fillet(self):
+        cat, conf = categorize("salmon fillet")
+        assert cat == "fish"
+        assert conf > 0.5
+
+    def test_cod(self):
+        cat, conf = categorize("cod")
+        assert cat == "fish"
+        assert conf > 0.5
+
+    # --- Seafood ---
+    def test_shrimp(self):
+        cat, conf = categorize("shrimp")
+        assert cat == "seafood"
+        assert conf > 0.5
+
+    def test_lobster(self):
+        cat, conf = categorize("lobster")
+        assert cat == "seafood"
+        assert conf > 0.5
+
+    # --- Processed meat ---
+    def test_bacon(self):
+        cat, conf = categorize("bacon")
+        assert cat == "processed_meat"
+        assert conf > 0.5
+
+    def test_pepperoni(self):
+        cat, conf = categorize("pepperoni")
+        assert cat == "processed_meat"
+        assert conf > 0.5
+
+    # --- Eggs ---
+    def test_egg(self):
+        cat, conf = categorize("egg")
+        assert cat == "eggs"
+        assert conf > 0.5
+
+    def test_eggs_plural(self):
+        cat, conf = categorize("eggs")
+        assert cat == "eggs"
+        assert conf > 0.5
+
+    # --- Alcohol ---
+    def test_red_wine(self):
+        cat, conf = categorize("red wine")
+        assert cat == "alcohol"
+        assert conf > 0.5
+
+    def test_bourbon(self):
+        cat, conf = categorize("bourbon")
+        assert cat == "alcohol"
+        assert conf > 0.5
+
+    def test_wine_vinegar_is_not_alcohol(self):
+        cat, _ = categorize("red wine vinegar")
+        assert cat == "pantry"
+
+    # --- Caffeine ---
+    def test_coffee(self):
+        cat, conf = categorize("coffee")
+        assert cat == "caffeine"
+        assert conf > 0.5
+
+    def test_espresso(self):
+        cat, conf = categorize("espresso")
+        assert cat == "caffeine"
+        assert conf > 0.5
+
+    # --- Refined sugar ---
+    def test_brown_sugar(self):
+        cat, conf = categorize("brown sugar")
+        assert cat == "refined_sugar"
+        assert conf > 0.5
+
+    def test_honey_stays_pantry(self):
+        cat, _ = categorize("honey")
+        assert cat == "pantry"
+
+    # --- Refined grains ---
+    def test_all_purpose_flour(self):
+        cat, conf = categorize("all-purpose flour")
+        assert cat == "refined_grains"
+        assert conf > 0.5
+
+    def test_white_rice(self):
+        cat, conf = categorize("white rice")
+        assert cat == "refined_grains"
+        assert conf > 0.5
+
+    def test_pasta_defaults_to_refined(self):
+        cat, _ = categorize("pasta")
+        assert cat == "refined_grains"
+
+    def test_whole_wheat_pasta_overrides(self):
+        cat, _ = categorize("whole wheat pasta")
+        assert cat == "whole_grains"
+
+    # --- Leavened bread ---
+    def test_bagel(self):
+        cat, conf = categorize("bagel")
+        assert cat == "leavened_bread"
+        assert conf > 0.5
+
+    def test_sourdough(self):
+        cat, conf = categorize("sourdough")
+        assert cat == "leavened_bread"
+        assert conf > 0.5
+
+    def test_bread_defaults_to_leavened(self):
+        cat, _ = categorize("bread")
+        assert cat == "leavened_bread"
+
+    def test_tortilla_stays_whole_grain(self):
+        cat, _ = categorize("tortilla")
+        assert cat == "whole_grains"
 
     # --- Dairy ---
     def test_milk(self):
@@ -156,18 +286,13 @@ class TestCategorize:
         assert conf > 0.5
 
     # --- Pantry ---
-    def test_flour(self):
-        cat, conf = categorize("flour")
-        assert cat == "pantry"
-        assert conf > 0.5
-
-    def test_sugar(self):
-        cat, conf = categorize("sugar")
-        assert cat == "pantry"
-        assert conf > 0.5
-
     def test_vegetable_broth(self):
         cat, conf = categorize("vegetable broth")
+        assert cat == "pantry"
+        assert conf > 0.5
+
+    def test_baking_powder(self):
+        cat, conf = categorize("baking powder")
         assert cat == "pantry"
         assert conf > 0.5
 

@@ -7,55 +7,84 @@ categorize(name: str) -> tuple[str, float]
   Uses a keyword dict with longest-match-first ordering.
   Falls back to ("other", 0.0) on no match.
 
-Category vocabulary extends Daniel Fast categories with four shopping extras:
-  Original: whole_grains, fruits, vegetables, legumes, nuts_seeds, oils, herbs_spices
-  Added:    meat, dairy, pantry, other
+Category vocabulary covers Phase 16 guardrails:
+  Plant:      whole_grains, fruits, vegetables, legumes, nuts_seeds, oils, herbs_spices
+  Animal:     beef, pork, poultry, fish, seafood, processed_meat, dairy, eggs
+  Other:      refined_grains, leavened_bread, refined_sugar, alcohol, caffeine,
+              pantry, other
+  Legacy catchall: meat (only for ambiguous mentions like "meat sauce")
 """
 from __future__ import annotations
 
 # Keyword → category mapping.
 # Keys are lowercased; matching is substring/longest-match over the ingredient name.
 _KEYWORD_CATEGORY: list[tuple[str, str]] = [
-    # --- Meat (longest specific names first) ---
-    ("chicken breast", "meat"),
-    ("ground beef", "meat"),
-    ("ground turkey", "meat"),
-    ("ground chicken", "meat"),
-    ("ground pork", "meat"),
-    ("pork chop", "meat"),
-    ("salmon fillet", "meat"),
-    ("tuna steak", "meat"),
-    ("lamb chop", "meat"),
-    ("beef steak", "meat"),
-    ("sirloin", "meat"),
-    ("chicken thigh", "meat"),
-    ("chicken drumstick", "meat"),
-    ("chicken wing", "meat"),
-    ("pork belly", "meat"),
-    ("pork tenderloin", "meat"),
-    ("bacon", "meat"),
-    ("sausage", "meat"),
-    ("ham", "meat"),
-    ("salami", "meat"),
-    ("pepperoni", "meat"),
-    ("prosciutto", "meat"),
-    ("turkey", "meat"),
-    ("chicken", "meat"),
-    ("beef", "meat"),
-    ("pork", "meat"),
-    ("lamb", "meat"),
-    ("salmon", "meat"),
-    ("tuna", "meat"),
-    ("shrimp", "meat"),
-    ("crab", "meat"),
-    ("lobster", "meat"),
-    ("cod", "meat"),
-    ("tilapia", "meat"),
-    ("halibut", "meat"),
-    ("sardine", "meat"),
-    ("anchovy", "meat"),
-    ("venison", "meat"),
-    ("bison", "meat"),
+    # --- Processed meat (cured / smoked / preserved) ---
+    ("bacon", "processed_meat"),
+    ("sausage", "processed_meat"),
+    ("ham", "processed_meat"),
+    ("salami", "processed_meat"),
+    ("pepperoni", "processed_meat"),
+    ("prosciutto", "processed_meat"),
+    ("hot dog", "processed_meat"),
+    ("bratwurst", "processed_meat"),
+    ("chorizo", "processed_meat"),
+    ("deli meat", "processed_meat"),
+
+    # --- Poultry ---
+    ("chicken breast", "poultry"),
+    ("chicken thigh", "poultry"),
+    ("chicken drumstick", "poultry"),
+    ("chicken wing", "poultry"),
+    ("ground chicken", "poultry"),
+    ("ground turkey", "poultry"),
+    ("turkey breast", "poultry"),
+    ("turkey", "poultry"),
+    ("chicken", "poultry"),
+    ("duck", "poultry"),
+    ("quail", "poultry"),
+
+    # --- Fish ---
+    ("salmon fillet", "fish"),
+    ("tuna steak", "fish"),
+    ("salmon", "fish"),
+    ("tuna", "fish"),
+    ("cod", "fish"),
+    ("tilapia", "fish"),
+    ("halibut", "fish"),
+    ("sardine", "fish"),
+    ("anchovy", "fish"),
+    ("mackerel", "fish"),
+    ("trout", "fish"),
+    ("sea bass", "fish"),
+
+    # --- Seafood (shellfish) ---
+    ("shrimp", "seafood"),
+    ("crab", "seafood"),
+    ("lobster", "seafood"),
+    ("scallop", "seafood"),
+    ("mussel", "seafood"),
+    ("clam", "seafood"),
+    ("oyster", "seafood"),
+    ("squid", "seafood"),
+    ("octopus", "seafood"),
+
+    # --- Beef ---
+    ("ground beef", "beef"),
+    ("beef steak", "beef"),
+    ("sirloin", "beef"),
+    ("beef", "beef"),
+    ("bison", "beef"),
+    ("venison", "beef"),
+
+    # --- Pork (and lamb/red meat) ---
+    ("ground pork", "pork"),
+    ("pork chop", "pork"),
+    ("pork belly", "pork"),
+    ("pork tenderloin", "pork"),
+    ("lamb chop", "pork"),
+    ("pork", "pork"),
+    ("lamb", "pork"),
 
     # --- Dairy (longest specific names first) ---
     ("cream cheese", "dairy"),
@@ -76,6 +105,12 @@ _KEYWORD_CATEGORY: list[tuple[str, str]] = [
     ("ghee", "dairy"),
     ("kefir", "dairy"),
     ("whey", "dairy"),
+
+    # --- Eggs ---
+    ("egg yolk", "eggs"),
+    ("egg white", "eggs"),
+    ("eggs", "eggs"),
+    ("egg", "eggs"),
 
     # --- Vegetables ---
     ("bell pepper", "vegetables"),
@@ -182,14 +217,13 @@ _KEYWORD_CATEGORY: list[tuple[str, str]] = [
     ("bean", "legumes"),
 
     # --- Whole grains ---
-    ("brown rice", "whole_grains"),
-    ("wild rice", "whole_grains"),
     ("whole wheat pasta", "whole_grains"),
     ("whole grain bread", "whole_grains"),
+    ("whole wheat flour", "whole_grains"),
+    ("brown rice", "whole_grains"),
+    ("wild rice", "whole_grains"),
     ("rolled oat", "whole_grains"),
     ("steel cut oat", "whole_grains"),
-    ("whole wheat flour", "whole_grains"),
-    ("wheat flour", "whole_grains"),
     ("buckwheat", "whole_grains"),
     ("millet", "whole_grains"),
     ("amaranth", "whole_grains"),
@@ -202,13 +236,43 @@ _KEYWORD_CATEGORY: list[tuple[str, str]] = [
     ("quinoa", "whole_grains"),
     ("oatmeal", "whole_grains"),
     ("oat", "whole_grains"),
-    ("rice", "whole_grains"),
-    ("pasta", "whole_grains"),
-    ("bread", "whole_grains"),
-    ("tortilla", "whole_grains"),
-    ("couscous", "whole_grains"),
+    ("tortilla", "whole_grains"),  # unleavened flatbread
     ("polenta", "whole_grains"),
     ("cornmeal", "whole_grains"),
+
+    # --- Refined grains ---
+    ("all-purpose flour", "refined_grains"),
+    ("all purpose flour", "refined_grains"),
+    ("white flour", "refined_grains"),
+    ("white rice", "refined_grains"),
+    ("jasmine rice", "refined_grains"),
+    ("basmati rice", "refined_grains"),
+    ("wheat flour", "refined_grains"),  # plain "wheat flour" — usually refined
+    ("pasta", "refined_grains"),  # default unless "whole wheat pasta" (matched above)
+    ("couscous", "refined_grains"),
+    ("rice", "refined_grains"),  # default unless "brown/wild rice" (matched above)
+    ("flour", "refined_grains"),  # default unless "whole wheat flour" (matched above)
+
+    # --- Leavened bread (yeast-risen) ---
+    ("whole wheat bread", "leavened_bread"),
+    ("sandwich bread", "leavened_bread"),
+    ("white bread", "leavened_bread"),
+    ("pita bread", "leavened_bread"),
+    ("hamburger bun", "leavened_bread"),
+    ("hot dog bun", "leavened_bread"),
+    ("dinner roll", "leavened_bread"),
+    ("english muffin", "leavened_bread"),
+    ("pizza dough", "leavened_bread"),
+    ("sourdough", "leavened_bread"),
+    ("ciabatta", "leavened_bread"),
+    ("focaccia", "leavened_bread"),
+    ("baguette", "leavened_bread"),
+    ("croissant", "leavened_bread"),
+    ("brioche", "leavened_bread"),
+    ("bagel", "leavened_bread"),
+    ("pita", "leavened_bread"),
+    ("naan", "leavened_bread"),
+    ("bread", "leavened_bread"),  # catchall (most unspecified bread is leavened)
 
     # --- Nuts / seeds ---
     ("sunflower seed", "nuts_seeds"),
@@ -295,8 +359,50 @@ _KEYWORD_CATEGORY: list[tuple[str, str]] = [
     ("pepper", "herbs_spices"),
     ("salt", "herbs_spices"),
 
+    # --- Refined sugar ---
+    ("high fructose corn syrup", "refined_sugar"),
+    ("confectioners sugar", "refined_sugar"),
+    ("powdered sugar", "refined_sugar"),
+    ("granulated sugar", "refined_sugar"),
+    ("brown sugar", "refined_sugar"),
+    ("white sugar", "refined_sugar"),
+    ("cane sugar", "refined_sugar"),
+    ("corn syrup", "refined_sugar"),
+    ("agave syrup", "refined_sugar"),
+    ("agave nectar", "refined_sugar"),
+    ("sugar", "refined_sugar"),  # default — usually refined unless "coconut/date sugar"
+
+    # --- Alcohol ---
+    ("red wine", "alcohol"),
+    ("white wine", "alcohol"),
+    ("cooking wine", "alcohol"),
+    ("dry vermouth", "alcohol"),
+    ("wine", "alcohol"),
+    ("beer", "alcohol"),
+    ("vodka", "alcohol"),
+    ("gin", "alcohol"),
+    ("rum", "alcohol"),
+    ("bourbon", "alcohol"),
+    ("whiskey", "alcohol"),
+    ("whisky", "alcohol"),
+    ("tequila", "alcohol"),
+    ("brandy", "alcohol"),
+    ("cognac", "alcohol"),
+    ("champagne", "alcohol"),
+    ("prosecco", "alcohol"),
+    ("sake", "alcohol"),
+    ("liqueur", "alcohol"),
+    ("sherry", "alcohol"),
+    ("port", "alcohol"),
+
+    # --- Caffeine ---
+    ("instant coffee", "caffeine"),
+    ("cold brew", "caffeine"),
+    ("espresso", "caffeine"),
+    ("coffee", "caffeine"),
+    ("matcha", "caffeine"),
+
     # --- Pantry ---
-    ("all-purpose flour", "pantry"),
     ("baking powder", "pantry"),
     ("baking soda", "pantry"),
     ("vegetable broth", "pantry"),
@@ -312,13 +418,12 @@ _KEYWORD_CATEGORY: list[tuple[str, str]] = [
     ("coconut milk", "pantry"),
     ("apple cider vinegar", "pantry"),
     ("balsamic vinegar", "pantry"),
-    ("red wine vinegar", "pantry"),
+    ("red wine vinegar", "pantry"),  # "wine vinegar" is non-alcoholic
     ("white wine vinegar", "pantry"),
+    ("wine vinegar", "pantry"),  # prevents fall-through match of "wine" → alcohol
     ("dijon mustard", "pantry"),
-    ("maple syrup", "pantry"),
-    ("honey", "pantry"),
-    ("brown sugar", "pantry"),
-    ("powdered sugar", "pantry"),
+    ("maple syrup", "pantry"),  # natural sweetener
+    ("honey", "pantry"),  # natural sweetener
     ("corn starch", "pantry"),
     ("cornstarch", "pantry"),
     ("vanilla extract", "pantry"),
@@ -331,13 +436,10 @@ _KEYWORD_CATEGORY: list[tuple[str, str]] = [
     ("mustard", "pantry"),
     ("ketchup", "pantry"),
     ("mayonnaise", "pantry"),
-    ("flour", "pantry"),
-    ("sugar", "pantry"),
     ("syrup", "pantry"),
     ("jam", "pantry"),
     ("jelly", "pantry"),
     ("water", "pantry"),
-    ("egg", "pantry"),
 ]
 
 # Sort by key length descending for longest-match-first
