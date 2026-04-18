@@ -19,6 +19,10 @@ python-multipart>=0.0.7
 recipe-scrapers>=15.0.0
 httpx>=0.27.0
 
+# Ingredient parsing (Phase 15) — CRF model for structured parse
+# Falls back to regex parser if wheel unavailable (see app/recipes/parser.py)
+ingredient-parser-nlp>=1.0.0
+
 # Migrations
 alembic>=1.13.0
 
