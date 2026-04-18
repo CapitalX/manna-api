@@ -286,15 +286,21 @@ def downgrade() -> None:
     conn.execute(sa.text("""
         DO $$
         BEGIN
-            ALTER POLICY tenant_isolation_user_protocols ON user_fasts
+            ALTER POLICY tenant_isolation_user_protocols ON user_protocols
                 RENAME TO tenant_isolation_user_fasts;
         EXCEPTION WHEN OTHERS THEN NULL;
         END $$;
     """))
 
     # ------------------------------------------------------------------
-    # Delete the three new diet protocol rows
+    # Delete the three new diet protocol rows (FK-safe: purge dependent
+    # user_protocols rows first so the protocols DELETE cannot FK-fail)
     # ------------------------------------------------------------------
+    conn.execute(sa.text("""
+        DELETE FROM user_protocols
+        WHERE protocol_id IN ('mediterranean', 'vegetarian', 'none')
+    """))
+
     conn.execute(sa.text("""
         DELETE FROM protocols WHERE id IN ('mediterranean', 'vegetarian', 'none')
     """))

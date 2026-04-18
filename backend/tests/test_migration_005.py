@@ -125,6 +125,21 @@ def pg_schema_004(pg_conn):
     cur.close()
 
 
+def _load_migration_005_module():
+    """Load and return the migration 005 module."""
+    import importlib.util
+    import pathlib
+
+    spec = importlib.util.spec_from_file_location(
+        "migration_005",
+        pathlib.Path(__file__).parent.parent
+        / "alembic/versions/005_rename_fasts_to_protocols.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def _run_migration_005(conn) -> None:
     """
     Execute the DDL from migration 005 using a raw psycopg2 connection.
@@ -134,20 +149,24 @@ def _run_migration_005(conn) -> None:
     """
     from alembic.runtime.migration import MigrationContext
     from alembic.operations import Operations
-    import alembic.context as alembic_ctx
 
     ctx = MigrationContext.configure(conn)
     with Operations.context(ctx):
-        # Import upgrade() from the migration module
-        import importlib.util, pathlib
-        spec = importlib.util.spec_from_file_location(
-            "migration_005",
-            pathlib.Path(__file__).parent.parent
-            / "alembic/versions/005_rename_fasts_to_protocols.py",
-        )
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
+        mod = _load_migration_005_module()
         mod.upgrade()
+
+
+def _run_downgrade_005(conn) -> None:
+    """
+    Execute downgrade() from migration 005 using a raw psycopg2 connection.
+    """
+    from alembic.runtime.migration import MigrationContext
+    from alembic.operations import Operations
+
+    ctx = MigrationContext.configure(conn)
+    with Operations.context(ctx):
+        mod = _load_migration_005_module()
+        mod.downgrade()
 
 
 # ---------------------------------------------------------------------------
@@ -311,3 +330,115 @@ def test_backfill_correct(pg_schema_004):
         axes, rf = rows[if_id]
         assert axes == "schedule_only", f"{if_id} axes should be 'schedule_only', got {axes}"
         assert rf is False, f"{if_id} recipe_focused should be FALSE"
+
+
+# ---------------------------------------------------------------------------
+# Test 5 — Downgrade reverses the upgrade cleanly
+# ---------------------------------------------------------------------------
+
+@pg_required
+def test_downgrade_reverses_upgrade(pg_schema_004):
+    """
+    After upgrade() + downgrade(), the schema must be back to post-004 state:
+
+    - fast_types and user_fasts exist
+    - protocols and user_protocols do NOT exist
+    - axes and recipe_focused columns are gone from fast_types
+    - The three seeded diet rows (mediterranean, vegetarian, none) are gone
+    - The RLS policy tenant_isolation_user_fasts exists on user_fasts
+      (verifies C1: the downgrade policy rename targets user_protocols, not user_fasts)
+
+    A user_protocols row referencing 'mediterranean' is inserted before downgrade
+    to exercise the FK-safe DELETE path from I2.
+    """
+    conn = pg_schema_004
+    cur = conn.cursor()
+
+    # Step 1: apply upgrade
+    _run_migration_005(conn)
+
+    # Step 2: create an RLS policy on user_protocols (so the rename-back in
+    # downgrade is meaningful and the C1 fix is exercised)
+    cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_policies
+                WHERE schemaname = 'public'
+                  AND tablename  = 'user_protocols'
+                  AND policyname = 'tenant_isolation_user_protocols'
+            ) THEN
+                -- Enable RLS and create the policy so the RENAME in downgrade has
+                -- something real to act on.
+                ALTER TABLE user_protocols ENABLE ROW LEVEL SECURITY;
+                CREATE POLICY tenant_isolation_user_protocols
+                    ON user_protocols
+                    USING (true);
+            END IF;
+        END $$;
+    """)
+    conn.commit()
+
+    # Step 3: insert a user_protocols row referencing 'mediterranean' to exercise
+    # the FK-safe delete path (I2 fix) — without it the seed DELETE would FK-fail
+    cur.execute("""
+        INSERT INTO user_protocols (user_id, protocol_id, status, start_date, config)
+        VALUES (gen_random_uuid(), 'mediterranean', 'active', CURRENT_DATE, '{}')
+    """)
+    conn.commit()
+
+    # Step 4: run downgrade — must not raise
+    _run_downgrade_005(conn)
+    conn.commit()
+
+    # Step 5: assert tables reverted
+    cur.execute("""
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name IN ('fast_types', 'user_fasts', 'protocols', 'user_protocols')
+        ORDER BY table_name
+    """)
+    table_names = {row[0] for row in cur.fetchall()}
+
+    assert "fast_types" in table_names, "fast_types must exist after downgrade"
+    assert "user_fasts" in table_names, "user_fasts must exist after downgrade"
+    assert "protocols" not in table_names, "protocols must be renamed away by downgrade"
+    assert "user_protocols" not in table_names, "user_protocols must be renamed away by downgrade"
+
+    # Step 6: axes and recipe_focused must be gone from fast_types
+    cur.execute("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'fast_types'
+          AND column_name IN ('axes', 'recipe_focused')
+    """)
+    leftover_cols = {row[0] for row in cur.fetchall()}
+    assert "axes" not in leftover_cols, "axes column must be dropped by downgrade"
+    assert "recipe_focused" not in leftover_cols, "recipe_focused column must be dropped by downgrade"
+
+    # Step 7: the three seeded diet rows must not appear in fast_types
+    cur.execute("""
+        SELECT id FROM fast_types
+        WHERE id IN ('mediterranean', 'vegetarian', 'none')
+    """)
+    leftover_seeds = {row[0] for row in cur.fetchall()}
+    assert not leftover_seeds, (
+        f"Seeded diet rows must be deleted by downgrade; found: {leftover_seeds}"
+    )
+
+    # Step 8: RLS policy tenant_isolation_user_fasts must exist on user_fasts
+    # (verifies C1 — the rename was issued ON user_protocols, not ON user_fasts)
+    cur.execute("""
+        SELECT policyname
+        FROM pg_policies
+        WHERE schemaname = 'public'
+          AND tablename  = 'user_fasts'
+          AND policyname = 'tenant_isolation_user_fasts'
+    """)
+    policy_row = cur.fetchone()
+    assert policy_row is not None, (
+        "RLS policy 'tenant_isolation_user_fasts' must exist on user_fasts after downgrade. "
+        "If missing, the downgrade policy rename was issued on the wrong table (C1 bug)."
+    )
