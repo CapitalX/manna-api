@@ -1,6 +1,6 @@
 """add structured ingredient columns and recipe_checklist_items
 
-Revision ID: 004_add_structured_ingredient_columns
+Revision ID: 004_structured_ingredients
 Revises: 003_add_recipe_tables
 Create Date: 2026-04-17
 
@@ -29,7 +29,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = '004_add_structured_ingredient_columns'
+revision = '004_structured_ingredients'
 down_revision = '003_add_recipe_tables'
 branch_labels = None
 depends_on = None
@@ -37,6 +37,18 @@ depends_on = None
 
 def upgrade() -> None:
     conn = op.get_bind()
+
+    # ------------------------------------------------------------------
+    # alembic_version.version_num defaults to VARCHAR(32). Expand it so
+    # future revision IDs longer than 32 chars don't fail with
+    # StringDataRightTruncationError. Idempotent: widening is a no-op if
+    # already >= 64. This migration's own ID (`004_structured_ingredients`)
+    # fits in 32, but this is a one-line precaution against a hard-to-
+    # debug class of bug.
+    # ------------------------------------------------------------------
+    conn.execute(sa.text("""
+        ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(64)
+    """))
 
     # ------------------------------------------------------------------
     # recipe_ingredients — add structured parse columns
