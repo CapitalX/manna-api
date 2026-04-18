@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """
-Tests for the /api/v1/fasts endpoints.
+Tests for the /api/v1/protocols endpoints (canonical routes).
 
 TDD approach — tests define expected behaviour. Uses SQLite in-memory DB
 via authed_client fixture which bypasses PG-specific set_config calls.
@@ -23,25 +23,25 @@ pytestmark = pytest.mark.asyncio
 
 
 # ---------------------------------------------------------------------------
-# GET /fasts/types  (no auth required — uses plain `client`)
+# GET /protocols/types  (no auth required — uses plain `client`)
 # ---------------------------------------------------------------------------
 
-class TestGetFastTypes:
-    async def test_returns_all_active_fast_types(
+class TestGetProtocolTypes:
+    async def test_returns_all_active_protocol_types(
         self, client: TestClient, db_session: AsyncSession
     ):
-        """GET /fasts/types returns all 7 active fast types."""
+        """GET /protocols/types returns all 7 active protocol types."""
         await seed_fast_types(db_session)
-        response = client.get("/api/v1/fasts/types")
+        response = client.get("/api/v1/protocols/types")
         assert response.status_code == 200
         assert len(response.json()) == 7
 
-    async def test_returns_fast_type_fields(
+    async def test_returns_protocol_type_fields(
         self, client: TestClient, db_session: AsyncSession
     ):
-        """Each fast type contains the expected top-level fields."""
+        """Each protocol type contains the expected top-level fields."""
         await seed_fast_types(db_session)
-        data = client.get("/api/v1/fasts/types").json()
+        data = client.get("/api/v1/protocols/types").json()
         first = next(ft for ft in data if ft["id"] == "daniel_fast")
         assert first["name"] == "Daniel Fast"
         assert first["category"] == "faith"
@@ -54,32 +54,32 @@ class TestGetFastTypes:
     ):
         """No Authorization header needed."""
         await seed_fast_types(db_session)
-        response = client.get("/api/v1/fasts/types")
+        response = client.get("/api/v1/protocols/types")
         assert response.status_code == 200
 
-    async def test_empty_when_no_fast_types(
+    async def test_empty_when_no_protocol_types(
         self, client: TestClient, db_session: AsyncSession
     ):
-        """Empty list when no fast types seeded."""
-        assert client.get("/api/v1/fasts/types").json() == []
+        """Empty list when no protocol types seeded."""
+        assert client.get("/api/v1/protocols/types").json() == []
 
 
 # ---------------------------------------------------------------------------
-# POST /fasts/start
+# POST /protocols/start
 # ---------------------------------------------------------------------------
 
-class TestStartFast:
-    async def test_creates_user_fast(
+class TestStartProtocol:
+    async def test_creates_user_protocol(
         self, authed_client, db_session: AsyncSession
     ):
-        """POST /fasts/start → 201 with UserFast response."""
+        """POST /protocols/start → 201 with UserProtocol response."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
         response = client.post(
-            "/api/v1/fasts/start",
+            "/api/v1/protocols/start",
             json={"fast_type_id": "daniel_fast"},
         )
         assert response.status_code == 201, response.text
@@ -89,17 +89,17 @@ class TestStartFast:
         assert data["current_day"] == 1
         assert data["start_date"] == date.today().isoformat()
 
-    async def test_409_when_active_fast_exists(
+    async def test_409_when_active_protocol_exists(
         self, authed_client, db_session: AsyncSession
     ):
-        """409 when user already has an active fast."""
+        """409 when user already has an active protocol."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/fasts/start", json={"fast_type_id": "daniel_fast"})
-        response = client.post("/api/v1/fasts/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        response = client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
         assert response.status_code == 409
 
     async def test_422_custom_duration_below_min(
@@ -112,7 +112,7 @@ class TestStartFast:
         state["user"] = user
 
         response = client.post(
-            "/api/v1/fasts/start",
+            "/api/v1/protocols/start",
             json={"fast_type_id": "daniel_fast", "custom_duration_days": 0},
         )
         assert response.status_code == 422
@@ -127,7 +127,7 @@ class TestStartFast:
         state["user"] = user
 
         response = client.post(
-            "/api/v1/fasts/start",
+            "/api/v1/protocols/start",
             json={"fast_type_id": "daniel_fast", "custom_duration_days": 99},
         )
         assert response.status_code == 422
@@ -135,29 +135,29 @@ class TestStartFast:
     async def test_422_custom_duration_on_fixed_type(
         self, authed_client, db_session: AsyncSession
     ):
-        """422 when custom_duration_days set for fixed-duration fast (esther_fast)."""
+        """422 when custom_duration_days set for fixed-duration protocol (esther_fast)."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
         response = client.post(
-            "/api/v1/fasts/start",
+            "/api/v1/protocols/start",
             json={"fast_type_id": "esther_fast", "custom_duration_days": 2},
         )
         assert response.status_code == 422
 
-    async def test_404_unknown_fast_type(
+    async def test_404_unknown_protocol_type(
         self, authed_client, db_session: AsyncSession
     ):
-        """404 when fast_type_id doesn't match any active fast type."""
+        """404 when fast_type_id doesn't match any active protocol type."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
         response = client.post(
-            "/api/v1/fasts/start",
+            "/api/v1/protocols/start",
             json={"fast_type_id": "nonexistent_fast"},
         )
         assert response.status_code == 404
@@ -171,7 +171,7 @@ class TestStartFast:
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        response = client.post("/api/v1/fasts/start", json={"fast_type_id": "esther_fast"})
+        response = client.post("/api/v1/protocols/start", json={"fast_type_id": "esther_fast"})
         assert response.status_code == 201
         expected_end = (date.today() + timedelta(days=3)).isoformat()
         assert response.json()["end_date"] == expected_end
@@ -179,13 +179,13 @@ class TestStartFast:
     async def test_ongoing_type_has_null_end_date(
         self, authed_client, db_session: AsyncSession
     ):
-        """Ongoing IF fasts have end_date = null."""
+        """Ongoing IF protocols have end_date = null."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        response = client.post("/api/v1/fasts/start", json={"fast_type_id": "if_16_8"})
+        response = client.post("/api/v1/protocols/start", json={"fast_type_id": "if_16_8"})
         assert response.status_code == 201
         assert response.json()["end_date"] is None
 
@@ -199,7 +199,7 @@ class TestStartFast:
         state["user"] = user
 
         response = client.post(
-            "/api/v1/fasts/start",
+            "/api/v1/protocols/start",
             json={
                 "fast_type_id": "if_16_8",
                 "eating_window_override": {"start_time": "10:00", "end_time": "18:00"},
@@ -217,7 +217,7 @@ class TestStartFast:
         """403/401 without Bearer token (HTTPBearer returns 403)."""
         await seed_fast_types(db_session)
         response = client.post(
-            "/api/v1/fasts/start",
+            "/api/v1/protocols/start",
             json={"fast_type_id": "daniel_fast"},
         )
         # FastAPI HTTPBearer returns 403 for missing credentials
@@ -225,134 +225,134 @@ class TestStartFast:
 
 
 # ---------------------------------------------------------------------------
-# GET /fasts/me
+# GET /protocols/me
 # ---------------------------------------------------------------------------
 
-class TestGetActiveFast:
-    async def test_returns_active_fast(
+class TestGetActiveProtocol:
+    async def test_returns_active_protocol(
         self, authed_client, db_session: AsyncSession
     ):
-        """GET /fasts/me returns the user's active fast."""
+        """GET /protocols/me returns the user's active protocol."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/fasts/start", json={"fast_type_id": "daniel_fast"})
-        response = client.get("/api/v1/fasts/me")
+        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        response = client.get("/api/v1/protocols/me")
         assert response.status_code == 200
         assert response.json()["fast_type_id"] == "daniel_fast"
         assert response.json()["status"] == "active"
 
-    async def test_404_when_no_active_fast(
+    async def test_404_when_no_active_protocol(
         self, authed_client, db_session: AsyncSession
     ):
-        """GET /fasts/me → 404 when user has no active fast."""
+        """GET /protocols/me → 404 when user has no active protocol."""
         client, state = authed_client
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        response = client.get("/api/v1/fasts/me")
+        response = client.get("/api/v1/protocols/me")
         assert response.status_code == 404
 
 
 # ---------------------------------------------------------------------------
-# POST /fasts/me/complete  &  POST /fasts/me/abandon
+# POST /protocols/me/complete  &  POST /protocols/me/abandon
 # ---------------------------------------------------------------------------
 
-class TestFastStateTransitions:
-    async def test_complete_fast(
+class TestProtocolStateTransitions:
+    async def test_complete_protocol(
         self, authed_client, db_session: AsyncSession
     ):
-        """POST /fasts/me/complete → status becomes 'completed'."""
+        """POST /protocols/me/complete → status becomes 'completed'."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/fasts/start", json={"fast_type_id": "daniel_fast"})
-        response = client.post("/api/v1/fasts/me/complete")
+        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        response = client.post("/api/v1/protocols/me/complete")
         assert response.status_code == 200
         assert response.json()["status"] == "completed"
 
-    async def test_complete_clears_active_fast(
+    async def test_complete_clears_active_protocol(
         self, authed_client, db_session: AsyncSession
     ):
-        """After completing, GET /fasts/me returns 404."""
+        """After completing, GET /protocols/me returns 404."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/fasts/start", json={"fast_type_id": "daniel_fast"})
-        client.post("/api/v1/fasts/me/complete")
-        assert client.get("/api/v1/fasts/me").status_code == 404
+        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/me/complete")
+        assert client.get("/api/v1/protocols/me").status_code == 404
 
-    async def test_abandon_fast(
+    async def test_abandon_protocol(
         self, authed_client, db_session: AsyncSession
     ):
-        """POST /fasts/me/abandon → status becomes 'abandoned'."""
+        """POST /protocols/me/abandon → status becomes 'abandoned'."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/fasts/start", json={"fast_type_id": "daniel_fast"})
-        response = client.post("/api/v1/fasts/me/abandon")
+        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        response = client.post("/api/v1/protocols/me/abandon")
         assert response.status_code == 200
         assert response.json()["status"] == "abandoned"
 
-    async def test_complete_404_when_no_active_fast(
+    async def test_complete_404_when_no_active_protocol(
         self, authed_client, db_session: AsyncSession
     ):
-        """POST /fasts/me/complete → 404 when no active fast."""
+        """POST /protocols/me/complete → 404 when no active protocol."""
         client, state = authed_client
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        assert client.post("/api/v1/fasts/me/complete").status_code == 404
+        assert client.post("/api/v1/protocols/me/complete").status_code == 404
 
-    async def test_abandon_404_when_no_active_fast(
+    async def test_abandon_404_when_no_active_protocol(
         self, authed_client, db_session: AsyncSession
     ):
-        """POST /fasts/me/abandon → 404 when no active fast."""
+        """POST /protocols/me/abandon → 404 when no active protocol."""
         client, state = authed_client
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        assert client.post("/api/v1/fasts/me/abandon").status_code == 404
+        assert client.post("/api/v1/protocols/me/abandon").status_code == 404
 
 
 # ---------------------------------------------------------------------------
-# GET /fasts/me/completed-days
+# GET /protocols/me/completed-days
 # ---------------------------------------------------------------------------
 
 class TestCompletedDays:
-    async def test_returns_empty_when_no_completed_fasts(
+    async def test_returns_empty_when_no_completed_protocols(
         self, authed_client, db_session: AsyncSession
     ):
-        """Returns empty list when user has never completed a fast."""
+        """Returns empty list when user has never completed a protocol."""
         client, state = authed_client
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        response = client.get("/api/v1/fasts/me/completed-days")
+        response = client.get("/api/v1/protocols/me/completed-days")
         assert response.status_code == 200
         assert response.json()["completed_days"] == []
 
     async def test_returns_iso_dates_after_completing(
         self, authed_client, db_session: AsyncSession
     ):
-        """Returns today's ISO date after completing a fast."""
+        """Returns today's ISO date after completing a protocol."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/fasts/start", json={"fast_type_id": "daniel_fast"})
-        client.post("/api/v1/fasts/me/complete")
+        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/me/complete")
 
-        response = client.get("/api/v1/fasts/me/completed-days")
+        response = client.get("/api/v1/protocols/me/completed-days")
         assert response.status_code == 200
         days = response.json()["completed_days"]
         assert len(days) >= 1
@@ -361,14 +361,14 @@ class TestCompletedDays:
     async def test_abandoned_not_in_completed_days(
         self, authed_client, db_session: AsyncSession
     ):
-        """Abandoned fasts do NOT appear in completed_days."""
+        """Abandoned protocols do NOT appear in completed_days."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/fasts/start", json={"fast_type_id": "daniel_fast"})
-        client.post("/api/v1/fasts/me/abandon")
+        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/me/abandon")
 
-        response = client.get("/api/v1/fasts/me/completed-days")
+        response = client.get("/api/v1/protocols/me/completed-days")
         assert response.json()["completed_days"] == []
