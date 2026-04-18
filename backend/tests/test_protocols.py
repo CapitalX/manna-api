@@ -80,7 +80,7 @@ class TestStartProtocol:
 
         response = client.post(
             "/api/v1/protocols/start",
-            json={"fast_type_id": "daniel_fast"},
+            json={"protocol_id": "daniel_fast"},
         )
         assert response.status_code == 201, response.text
         data = response.json()
@@ -98,8 +98,8 @@ class TestStartProtocol:
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
-        response = client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/start", json={"protocol_id": "daniel_fast"})
+        response = client.post("/api/v1/protocols/start", json={"protocol_id": "daniel_fast"})
         assert response.status_code == 409
 
     async def test_422_custom_duration_below_min(
@@ -113,7 +113,7 @@ class TestStartProtocol:
 
         response = client.post(
             "/api/v1/protocols/start",
-            json={"fast_type_id": "daniel_fast", "custom_duration_days": 0},
+            json={"protocol_id": "daniel_fast", "custom_duration_days": 0},
         )
         assert response.status_code == 422
 
@@ -128,7 +128,7 @@ class TestStartProtocol:
 
         response = client.post(
             "/api/v1/protocols/start",
-            json={"fast_type_id": "daniel_fast", "custom_duration_days": 99},
+            json={"protocol_id": "daniel_fast", "custom_duration_days": 99},
         )
         assert response.status_code == 422
 
@@ -143,14 +143,14 @@ class TestStartProtocol:
 
         response = client.post(
             "/api/v1/protocols/start",
-            json={"fast_type_id": "esther_fast", "custom_duration_days": 2},
+            json={"protocol_id": "esther_fast", "custom_duration_days": 2},
         )
         assert response.status_code == 422
 
     async def test_404_unknown_protocol_type(
         self, authed_client, db_session: AsyncSession
     ):
-        """404 when fast_type_id doesn't match any active protocol type."""
+        """404 when protocol_id doesn't match any active protocol type."""
         client, state = authed_client
         await seed_fast_types(db_session)
         user, _ = await create_user_and_token(db_session)
@@ -158,7 +158,7 @@ class TestStartProtocol:
 
         response = client.post(
             "/api/v1/protocols/start",
-            json={"fast_type_id": "nonexistent_fast"},
+            json={"protocol_id": "nonexistent_fast"},
         )
         assert response.status_code == 404
 
@@ -171,7 +171,7 @@ class TestStartProtocol:
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        response = client.post("/api/v1/protocols/start", json={"fast_type_id": "esther_fast"})
+        response = client.post("/api/v1/protocols/start", json={"protocol_id": "esther_fast"})
         assert response.status_code == 201
         expected_end = (date.today() + timedelta(days=3)).isoformat()
         assert response.json()["end_date"] == expected_end
@@ -185,7 +185,7 @@ class TestStartProtocol:
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        response = client.post("/api/v1/protocols/start", json={"fast_type_id": "if_16_8"})
+        response = client.post("/api/v1/protocols/start", json={"protocol_id": "if_16_8"})
         assert response.status_code == 201
         assert response.json()["end_date"] is None
 
@@ -201,7 +201,7 @@ class TestStartProtocol:
         response = client.post(
             "/api/v1/protocols/start",
             json={
-                "fast_type_id": "if_16_8",
+                "protocol_id": "if_16_8",
                 "eating_window_override": {"start_time": "10:00", "end_time": "18:00"},
             },
         )
@@ -218,7 +218,7 @@ class TestStartProtocol:
         await seed_fast_types(db_session)
         response = client.post(
             "/api/v1/protocols/start",
-            json={"fast_type_id": "daniel_fast"},
+            json={"protocol_id": "daniel_fast"},
         )
         # FastAPI HTTPBearer returns 403 for missing credentials
         assert response.status_code in (401, 403)
@@ -238,7 +238,7 @@ class TestGetActiveProtocol:
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/start", json={"protocol_id": "daniel_fast"})
         response = client.get("/api/v1/protocols/me")
         assert response.status_code == 200
         assert response.json()["protocol_id"] == "daniel_fast"
@@ -270,7 +270,7 @@ class TestProtocolStateTransitions:
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/start", json={"protocol_id": "daniel_fast"})
         response = client.post("/api/v1/protocols/me/complete")
         assert response.status_code == 200
         assert response.json()["status"] == "completed"
@@ -284,7 +284,7 @@ class TestProtocolStateTransitions:
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/start", json={"protocol_id": "daniel_fast"})
         client.post("/api/v1/protocols/me/complete")
         assert client.get("/api/v1/protocols/me").status_code == 404
 
@@ -297,7 +297,7 @@ class TestProtocolStateTransitions:
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/start", json={"protocol_id": "daniel_fast"})
         response = client.post("/api/v1/protocols/me/abandon")
         assert response.status_code == 200
         assert response.json()["status"] == "abandoned"
@@ -349,7 +349,7 @@ class TestCompletedDays:
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/start", json={"protocol_id": "daniel_fast"})
         client.post("/api/v1/protocols/me/complete")
 
         response = client.get("/api/v1/protocols/me/completed-days")
@@ -367,7 +367,7 @@ class TestCompletedDays:
         user, _ = await create_user_and_token(db_session)
         state["user"] = user
 
-        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/start", json={"protocol_id": "daniel_fast"})
         client.post("/api/v1/protocols/me/abandon")
 
         response = client.get("/api/v1/protocols/me/completed-days")

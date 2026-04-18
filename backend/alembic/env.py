@@ -13,7 +13,8 @@ from app.database import Base
 # Import all models so Base.metadata is fully populated
 from app.models.user import Tenant, User  # noqa: F401
 from app.models.recipe import Recipe, RecipeIngredient, RecipeInstruction  # noqa: F401
-from app.fasting.models import FastType, UserFast  # noqa: F401
+from app.models.protocol import Protocol  # noqa: F401
+from app.models.user_protocol import UserProtocol  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
