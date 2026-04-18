@@ -84,7 +84,7 @@ class TestStartProtocol:
         )
         assert response.status_code == 201, response.text
         data = response.json()
-        assert data["fast_type_id"] == "daniel_fast"
+        assert data["protocol_id"] == "daniel_fast"
         assert data["status"] == "active"
         assert data["current_day"] == 1
         assert data["start_date"] == date.today().isoformat()
@@ -241,7 +241,7 @@ class TestGetActiveProtocol:
         client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
         response = client.get("/api/v1/protocols/me")
         assert response.status_code == 200
-        assert response.json()["fast_type_id"] == "daniel_fast"
+        assert response.json()["protocol_id"] == "daniel_fast"
         assert response.json()["status"] == "active"
 
     async def test_404_when_no_active_protocol(

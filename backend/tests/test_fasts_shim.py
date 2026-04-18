@@ -67,7 +67,7 @@ class TestFastsShimDelegation:
         # Read back via canonical protocols route
         r_canonical = client.get("/api/v1/protocols/me")
         assert r_canonical.status_code == 200
-        assert r_canonical.json()["fast_type_id"] == "daniel_fast"
+        assert r_canonical.json()["protocol_id"] == "daniel_fast"
 
     async def test_shim_patch_me_update_applies(
         self, authed_client, db_session: AsyncSession

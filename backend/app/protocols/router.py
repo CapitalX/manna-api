@@ -37,7 +37,7 @@ def _serialize_user_protocol(up: UserProtocol) -> UserProtocolResponse:
     return UserProtocolResponse(
         id=str(up.id),
         user_id=str(up.user_id),
-        fast_type_id=up.protocol_id,  # wire compat: mobile reads fast_type_id
+        protocol_id=up.protocol_id,
         status=up.status,
         start_date=up.start_date.isoformat(),
         end_date=up.end_date.isoformat() if up.end_date else None,
@@ -91,14 +91,14 @@ async def start_protocol(
     # 1. Verify the protocol exists
     pt_result = await db.execute(
         select(Protocol).where(
-            and_(Protocol.id == body.fast_type_id, Protocol.is_active == True)  # noqa: E712
+            and_(Protocol.id == body.protocol_id, Protocol.is_active == True)  # noqa: E712
         )
     )
     protocol = pt_result.scalar_one_or_none()
     if not protocol:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Fast type '{body.fast_type_id}' not found",  # wire compat: mobile error-detail parsing expects "Fast type"; rename with 16.M10
+            detail=f"Protocol '{body.protocol_id}' not found",
         )
 
     # 2. Check for existing active protocol (409)
@@ -159,7 +159,7 @@ async def start_protocol(
     user_protocol = UserProtocol(
         id=uuid.uuid4(),
         user_id=current_user.id,
-        protocol_id=body.fast_type_id,  # wire compat: request body still uses fast_type_id
+        protocol_id=body.protocol_id,
         status="active",
         start_date=start_date,
         end_date=end_date,
