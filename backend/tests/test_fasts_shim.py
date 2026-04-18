@@ -25,14 +25,6 @@ class TestFastsShimDelegation:
         assert r_new.status_code == r_shim.status_code == 200
         assert r_new.json() == r_shim.json()
 
-    async def test_shim_get_fasts_me_delegates_to_protocols_me(
-        self, client, db_session: AsyncSession
-    ):
-        """GET /fasts/me and GET /protocols/me return same 404 body when no active protocol."""
-        # Use plain client (no auth) to guarantee 403 on both — same error == delegation works.
-        # Actually we need an authed call; use authed_client.
-        pass  # covered by test below
-
     async def test_shim_me_404_matches_protocols_me_404(
         self, authed_client, db_session: AsyncSession
     ):
@@ -76,3 +68,71 @@ class TestFastsShimDelegation:
         r_canonical = client.get("/api/v1/protocols/me")
         assert r_canonical.status_code == 200
         assert r_canonical.json()["fast_type_id"] == "daniel_fast"
+
+    async def test_shim_patch_me_update_applies(
+        self, authed_client, db_session: AsyncSession
+    ):
+        """PATCH /fasts/me (shim) updates eating_window_override; canonical GET reflects it."""
+        client, state = authed_client
+        await seed_fast_types(db_session)
+        user, _ = await create_user_and_token(db_session)
+        state["user"] = user
+
+        client.post("/api/v1/protocols/start", json={"fast_type_id": "if_16_8"})
+        r_patch = client.patch(
+            "/api/v1/fasts/me",
+            json={"eating_window_override": {"start_time": "09:00", "end_time": "17:00"}},
+        )
+        assert r_patch.status_code == 200
+
+        r_canonical = client.get("/api/v1/protocols/me")
+        assert r_canonical.json()["eating_window_override"] == {
+            "start_time": "09:00",
+            "end_time": "17:00",
+        }
+
+    async def test_shim_complete_via_fasts_route(
+        self, authed_client, db_session: AsyncSession
+    ):
+        """POST /fasts/me/complete (shim) marks protocol completed; canonical GET confirms."""
+        client, state = authed_client
+        await seed_fast_types(db_session)
+        user, _ = await create_user_and_token(db_session)
+        state["user"] = user
+
+        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        r_complete = client.post("/api/v1/fasts/me/complete")
+        assert r_complete.status_code == 200
+        assert r_complete.json()["status"] == "completed"
+
+    async def test_shim_abandon_via_fasts_route(
+        self, authed_client, db_session: AsyncSession
+    ):
+        """POST /fasts/me/abandon (shim) marks protocol abandoned; status confirmed."""
+        client, state = authed_client
+        await seed_fast_types(db_session)
+        user, _ = await create_user_and_token(db_session)
+        state["user"] = user
+
+        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        r_abandon = client.post("/api/v1/fasts/me/abandon")
+        assert r_abandon.status_code == 200
+        assert r_abandon.json()["status"] == "abandoned"
+
+    async def test_shim_recent_matches_protocols_recent(
+        self, authed_client, db_session: AsyncSession
+    ):
+        """GET /fasts/me/recent (shim) returns same list as /protocols/me/recent."""
+        client, state = authed_client
+        await seed_fast_types(db_session)
+        user, _ = await create_user_and_token(db_session)
+        state["user"] = user
+
+        # Complete a protocol via canonical route so there's something to list
+        client.post("/api/v1/protocols/start", json={"fast_type_id": "daniel_fast"})
+        client.post("/api/v1/protocols/me/complete")
+
+        r_canonical = client.get("/api/v1/protocols/me/recent")
+        r_shim = client.get("/api/v1/fasts/me/recent")
+        assert r_canonical.status_code == r_shim.status_code == 200
+        assert r_canonical.json() == r_shim.json()

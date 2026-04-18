@@ -51,11 +51,3 @@ class UserProtocolResponse(BaseModel):
 class CompletedDaysResponse(BaseModel):
     completed_days: list[str]
 
-
-# ---------------------------------------------------------------------------
-# Back-compat aliases — used by app/fasting/models.py and legacy importers
-# DELETE in 16.C1
-# ---------------------------------------------------------------------------
-StartFastRequest = StartProtocolConfig
-UpdateFastRequest = UpdateProtocolConfig
-UserFastResponse = UserProtocolResponse

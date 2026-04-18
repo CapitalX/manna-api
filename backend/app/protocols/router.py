@@ -58,7 +58,7 @@ async def _get_active_protocol_or_404(user_id: uuid.UUID, db: AsyncSession) -> U
     )
     up = result.scalar_one_or_none()
     if not up:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active fast")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active fast")  # wire compat: mobile error-detail parsing expects "fast"; rename with 16.M10
     return up
 
 
@@ -98,7 +98,7 @@ async def start_protocol(
     if not protocol:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Fast type '{body.fast_type_id}' not found",
+            detail=f"Fast type '{body.fast_type_id}' not found",  # wire compat: mobile error-detail parsing expects "Fast type"; rename with 16.M10
         )
 
     # 2. Check for existing active protocol (409)
@@ -110,7 +110,7 @@ async def start_protocol(
     if existing_result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="User already has an active fast",
+            detail="User already has an active fast",  # wire compat: mobile error-detail parsing expects "fast"; rename with 16.M10
         )
 
     # 3. Validate custom_duration_days based on duration type
@@ -122,7 +122,7 @@ async def start_protocol(
     if duration_type == "fixed" and body.custom_duration_days is not None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="custom_duration_days cannot be set for fixed-duration fasts",
+            detail="custom_duration_days cannot be set for fixed-duration fasts",  # wire compat: mobile error-detail parsing expects "fasts"; rename with 16.M10
         )
     if duration_type == "user_configurable" and body.custom_duration_days is not None:
         if min_days is not None and body.custom_duration_days < min_days:

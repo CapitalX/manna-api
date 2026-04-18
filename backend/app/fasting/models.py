@@ -4,7 +4,7 @@ Fasting model re-exports.
 
 Phase 16.B2: classes were moved to app.models.protocol and
 app.models.user_protocol.  Back-compat aliases keep existing importers
-(router.py, conftest.py) working until 16.B3 / 16.B4 update them.
+(conftest.py, shim.py) working until the shim is deleted in 16.C1.
 """
 from app.models.protocol import Protocol
 from app.models.user_protocol import UserProtocol
