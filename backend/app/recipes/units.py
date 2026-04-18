@@ -6,7 +6,7 @@ normalize_unit(raw: str | None) -> tuple[str | None, bool]
   Returns (canonical_unit, needs_review).
   needs_review is True when the unit is unrecognized.
 
-Canonical unit set: g, oz, ml, L, tbsp, tsp, cup, count, pinch, lb, clove.
+Canonical unit set: g, kg, mg, oz, ml, L, tbsp, tsp, cup, count, pinch, lb, clove.
 """
 from __future__ import annotations
 
@@ -31,6 +31,16 @@ _ALIAS_MAP: dict[str, str] = {
     "gram": "g",
     "grams": "g",
     "g": "g",
+
+    # kg (kept distinct from g — downstream aggregators handle conversion)
+    "kilogram": "kg",
+    "kilograms": "kg",
+    "kg": "kg",
+
+    # mg
+    "milligram": "mg",
+    "milligrams": "mg",
+    "mg": "mg",
 
     # oz
     "ounce": "oz",

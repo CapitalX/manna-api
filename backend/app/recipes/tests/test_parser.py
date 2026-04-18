@@ -108,6 +108,70 @@ class TestParseLineBasic:
         assert hasattr(result, "confidence")
         assert hasattr(result, "needs_review")
 
+
+class TestCompactMetricUnits:
+    """European-style compact units ('400g', '1.5kg', '500ml') must parse
+    cleanly — user reported these flagging manual review when they shouldn't."""
+
+    def test_compact_grams(self):
+        result = parse_line("400g chicken breast")
+        assert result.quantity == 400.0
+        assert result.unit == "g"
+        assert result.name == "chicken breast"
+        assert result.needs_review is False
+
+    def test_compact_kilograms(self):
+        result = parse_line("1.5kg potatoes")
+        assert result.quantity == 1.5
+        assert result.unit == "kg"
+        assert result.name == "potatoes"
+        assert result.needs_review is False
+
+    def test_compact_milligrams(self):
+        result = parse_line("50mg saffron")
+        assert result.quantity == 50.0
+        assert result.unit == "mg"
+        assert result.name == "saffron"
+        assert result.needs_review is False
+
+    def test_compact_milliliters(self):
+        result = parse_line("500ml milk")
+        assert result.quantity == 500.0
+        assert result.unit == "ml"
+        assert result.name == "milk"
+
+    def test_compact_liters(self):
+        result = parse_line("2l water")
+        assert result.quantity == 2.0
+        assert result.unit == "L"
+        assert result.name == "water"
+
+    def test_compact_ounces(self):
+        result = parse_line("3oz cheese")
+        assert result.quantity == 3.0
+        assert result.unit == "oz"
+        assert result.name == "cheese"
+
+    def test_compact_pounds(self):
+        result = parse_line("1lb ground beef")
+        assert result.quantity == 1.0
+        assert result.unit == "lb"
+        assert result.name == "ground beef"
+
+    def test_compact_with_of_connector(self):
+        """'400g of chicken' — strip the 'of' after the unit."""
+        result = parse_line("400g of chicken breast")
+        assert result.quantity == 400.0
+        assert result.unit == "g"
+        assert result.name == "chicken breast"
+
+    def test_compact_does_not_eat_words_starting_with_digit(self):
+        """'400gallons water' is not a known unit — must not falsely split."""
+        result = parse_line("400gallons water")
+        # Either flagged for review or kept as-is; the key is we don't produce
+        # qty=400, unit='g', name='allons water'
+        assert not (result.quantity == 400.0 and result.unit == "g")
+
     def test_empty_string_does_not_crash(self):
         """Empty string → returns a ParsedIngredient with needs_review=True."""
         result = parse_line("")

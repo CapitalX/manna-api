@@ -107,10 +107,16 @@ def _try_nlp(raw: str) -> ParsedIngredient | None:
         if hasattr(result, "confidence") and result.confidence is not None:
             confidence = float(result.confidence)
         else:
-            # Estimate confidence from how much we extracted
+            # Estimate confidence from how much we extracted. A missing qty on a
+            # line that obviously has a number (e.g. "50mg saffron") means NLP
+            # failed — drop below the 0.4 threshold so the regex parser runs.
             has_qty = qty is not None
             has_name = bool(name)
-            confidence = 0.5 * has_qty + 0.5 * has_name
+            confidence = 0.6 * has_qty + 0.4 * has_name
+            # If there's a digit in the raw input but NLP didn't extract a
+            # quantity, the parse is almost certainly wrong — force fallback.
+            if not has_qty and any(ch.isdigit() for ch in raw):
+                confidence = min(confidence, 0.3)
 
         # Low-confidence: fall through to regex
         if confidence < 0.3 and not (qty and name):
@@ -133,6 +139,15 @@ def _try_nlp(raw: str) -> ParsedIngredient | None:
 # Regex-based fallback parser
 # ---------------------------------------------------------------------------
 
+# Compact metric unit: splits "400g" → "400 g", "1.5kg" → "1.5 kg", "500ml" → "500 ml",
+# so the main pattern can match European-style recipes. Only triggers at a
+# digit/letter boundary where the unit is followed by whitespace, EOL, or
+# punctuation — avoids eating into words like "400gallons".
+_COMPACT_UNIT_RE = re.compile(
+    r"(\d+(?:\.\d+)?)(kg|mg|ml|oz|lbs|lb|g|l)(?=\s|$|[,.])",
+    re.IGNORECASE,
+)
+
 # Pinch pattern: "a pinch of salt"
 _PINCH_RE = re.compile(
     r"^(?:a\s+)?pinch(?:es)?\s+of\s+(.+)$", re.IGNORECASE
@@ -143,7 +158,8 @@ _PINCH_RE = re.compile(
 _QTY_PART = r"(?:[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+(?:\.\d+)?(?:/\d+)?(?:\s+\d+/\d+)?)"
 _UNIT_WORDS = (
     r"cups?|tbsp\.?|tsp\.?|tablespoons?|teaspoons?|"
-    r"g|grams?|oz|ounces?|ml|milliliters?|millilitres?|"
+    r"kg|kilograms?|g|grams?|mg|milligrams?|"
+    r"oz|ounces?|ml|milliliters?|millilitres?|"
     r"l|liters?|litres?|lbs?|pounds?|"
     r"pinch(?:es)?|cloves?|count|pieces?|"
     r"cans?|package[ds]?|bunch(?:es)?|slice[ds]?|"
@@ -202,6 +218,10 @@ def _regex_parse(raw: str) -> ParsedIngredient:
         return ParsedIngredient(needs_review=True, confidence=0.0, name=None)
 
     text = raw.strip()
+
+    # Normalize compact metric units before regex matching: "400g" → "400 g".
+    # Also strip "of" after a unit for readability ("400g of chicken" → "400 g chicken").
+    text = _COMPACT_UNIT_RE.sub(r"\1 \2", text)
 
     # Expand unicode fractions at start of string for mixed number handling
     for uf, val in _UNICODE_FRACTIONS.items():
