@@ -35,7 +35,11 @@ _pg.JSONB = _JsonB  # type: ignore[assignment]
 from app.database import Base, get_db
 from app.main import app
 from app.models.user import Tenant, User
-from app.fasting.models import FastType, UserFast
+from app.models.protocol import Protocol
+from app.models.user_protocol import UserProtocol
+# Back-compat aliases used by legacy helpers below
+FastType = Protocol
+UserFast = UserProtocol
 from app.auth.service import hash_password, create_access_token
 from app.auth.dependencies import get_current_user
 
